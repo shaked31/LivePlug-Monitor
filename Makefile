@@ -28,10 +28,10 @@ plugins: $(PLUGIN_SO)
 $(BIN_PLUGIN_DIR)/%.so: $(PLUGIN_DIR)/%.c setup
 	$(CC) $(CFLAGS) -fPIC -shared $< -o $@
 
-clean_plugins:
+pclean:
 	rm -rf bin/plugins/*
 
-clean_build:
+bclean:
 	rm -rf build/*
 
-.PHONY: all clean setup core plugins clean_plugins clean_build
+.PHONY: all clean setup core plugins pclean bclean
