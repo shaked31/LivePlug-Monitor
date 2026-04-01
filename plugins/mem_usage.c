@@ -11,13 +11,17 @@
 #define MAX_BUFFER_SZ 2048
 static int mem_fd;
 
+/**
+ * Initializes the CPU monitor
+ * Opens the file, kept open for performance
+ */
 int mem_init() {
     mem_fd = open(PATH_TO_MEM_FILE, O_RDONLY);
     if (mem_fd < 0) {
         fprintf(stderr, "Couldn't open /proc/meminfo\n");
         return EXIT_FAILURE;
     }
-    printf("CPU Monitor Plugin initialized\n");
+    printf("Memory Monitor Plugin initialized\n");
     return EXIT_SUCCESS;
 }
 
@@ -26,6 +30,12 @@ void mem_run() {
         return;
     
     char buffer[MAX_BUFFER_SZ];
+
+    /**
+     * Using pread() with offset 0 to perform an atomic "seek and read" (the CPU treats it as a single action)
+     * This avoids calling lseek to reset the file cursor manually before every sample
+     * Reducing syscalls and CPU overhead
+     */
     ssize_t bytes_read = pread(mem_fd, buffer, sizeof(buffer) - 1, 0);
     if (bytes_read <= 0)
         return;
@@ -33,6 +43,13 @@ void mem_run() {
 
 
     unsigned long total = 0, available = 0;
+
+    
+    /**
+     * Search for specific keys in the /proc/meminfo file
+     * MemTotal - Total physical RAM installed
+     * MemAvailable - Estimated memory available
+     */ 
     char *ptr_total = strstr(buffer, "MemTotal:");
     char *ptr_available = strstr(buffer, "MemAvailable:");
 
@@ -41,6 +58,7 @@ void mem_run() {
     if (ptr_available)
         sscanf(ptr_available, "MemAvailable: %lu", &available);
 
+    // Calculates values in GB
     if (total > 0) {
         float used_gb = (float)(total - available) / (1024 * 1024);
         float total_gb = (float)total / (1024 * 1024);
@@ -49,11 +67,18 @@ void mem_run() {
     }
 }
 
+/**
+ * Cleans up open resources
+ * closes file descriptor
+ */
 void mem_cleanup() {
     if (mem_fd >= 0)
         close(mem_fd);
 }
 
+/**
+ * Export the plugin interface for the core engine
+ */
 plugin_t* get_plugin() {
     static plugin_t p = {
         .name = "mem_plugin",

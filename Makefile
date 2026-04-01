@@ -14,7 +14,7 @@ CODE_SOURCES = $(CORE_DIR)/main.c $(CORE_DIR)/core_engine.c $(CORE_DIR)/utils.c
 
 all: setup core plugins
 
-clean: clean_plugins clean_build
+clean: pclean bclean
 
 setup:
 	@mkdir -p $(BIN_PLUGIN_DIR)

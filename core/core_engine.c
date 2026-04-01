@@ -1,5 +1,5 @@
 /*
- * core_engine.c: handles plugins load, listens for changes in /bin/plugins dir
+ * core_engine.c: handles dynamic plugin loading, listens for changes in /bin/plugins dir
 */
 
 #include <stdio.h>
@@ -21,18 +21,34 @@
 #define EVENT_SIZE (sizeof(struct inotify_event))
 #define BUFFER_LEN (1024 * (EVENT_SIZE + MAX_FILENAME_LEN)) // allows the buffer to save up to 1024 events at once
 
-static volatile bool keep_running = true;
 
+static volatile bool keep_running = true;
+static int dashboard_start_line = 0;
+
+/**
+ * Signal Handler for SIGINT - Ctrl+C
+ * Used in engine_start_monitor
+ */
 static void handle_sigint(int sig) {
     (void)sig;
     keep_running = false;
 }
 
-static void restore_terminal() {
-    printf("\n[Core Info] Observer shut down. Bye!\n");
+/**
+ * Moves the cursor up and clear the dashboard area before printing a new log
+ * Prevents logs to push down the dashboard
+ */
+static void clear_dashboard_before_log() {
+    if (dashboard_start_line > 0) {
+        printf("\033[%dA\033[J", dashboard_start_line);
+        dashboard_start_line = 0;
+    }
     fflush(stdout);
 }
 
+/**
+ * Linked list of plugin nodes
+ */
 typedef struct plugin_node {
     char plugin_name[MAX_PLUGIN_NAME_LEN];
     char filename[MAX_FILENAME_LEN];
@@ -42,7 +58,11 @@ typedef struct plugin_node {
 } plugin_node_t;
 static plugin_node_t* head = NULL;
 
-
+/**
+ * Handles the loading of a plugin
+ * Initializes the plugin
+ * Add the plugin node to the linked list
+ */
 static void engine_load_plugin(const char* full_path) {
     void* handle = dlopen(full_path, RTLD_LAZY); // RTLD_LAZY makes function symbols only be resolved when they are called
     if (!handle) {
@@ -83,35 +103,11 @@ static void engine_load_plugin(const char* full_path) {
     printf("[Core Info] Successfully loaded plugin %s from the file %s\n", head->plugin_name, head->filename);
 }
 
-void engine_load_existing_plugins(const char* path) {
-    // printf("\033[H\033[2J\033[3J");
-    printf("\n");
-    fflush(stdout);
-
-    struct dirent *entry;
-    DIR *dir = opendir(path);
-
-    if (dir == NULL) {
-        fprintf(stderr, "[SYS Error] Couldn't open dir '%s'\n", path);
-        return;
-    }
-    
-    printf("[Core Info] loading existing plugins!\n");
-
-    while ((entry = readdir(dir)) != NULL) {
-        if (entry->d_name[0] != '.') {
-            char fullPluginPath[512];
-            snprintf(fullPluginPath, sizeof(fullPluginPath), "%s/%s", path, entry->d_name);
-            if (!check_file_extention(entry->d_name)) {
-                printf("[Core Warning] This folder is for .so files only, deleting this file\n");
-                remove(fullPluginPath);
-            }
-            engine_load_plugin(fullPluginPath);
-        }
-    }
-    closedir(dir);
-}
-
+/**
+ * Triggers cleanup for plugin where its file is deleted
+ * Deletes the node from the linked list
+ * Used in engine_handle_event
+ */
 static void engine_cleanup_plugin(const char* filename) {
     plugin_node_t *curr = head, *prev = NULL;
 
@@ -134,20 +130,20 @@ static void engine_cleanup_plugin(const char* filename) {
     }
 }
 
-static int dashboard_start_line = 0;
-
+/**
+ * The live dashboard renderer
+ * Clears the previous dashboard and runs each plugin from the linked list
+ */
 static void engine_run_all() {
+    if (dashboard_start_line > 0) {
+        printf("\033[%dA\033[J", dashboard_start_line);
+    }
+
     if (head == NULL) {
-        if (dashboard_start_line > 0) {
-            printf("\033[%dA", dashboard_start_line);
-            dashboard_start_line = 0;
-        }
+        dashboard_start_line = 0;
         return;
     }
-    if (dashboard_start_line > 0) {
-        printf("\033[%dA", dashboard_start_line);
-    }
-    
+
     int curr_count = 0;
 
     printf("\r\033[K\n"); 
@@ -160,22 +156,23 @@ static void engine_run_all() {
 
     plugin_node_t* curr = head;
     while (curr != NULL) {
-        // if (strcmp(curr->plugin_name, "hello_plugin") != 0) {
         printf("\r\033[K");
         curr->curr_plugin->run();
         curr_count++;
-        // }
         curr = curr->next;
     }
 
     printf("\r\033[K---------------------------------------\n");
     curr_count++;
-    // printf("\033[u");
     dashboard_start_line = curr_count;
 
     fflush(stdout);
 }
 
+/**
+ * Parses inotify events
+ * Handles creation, deletion, movement of files in the directory received in the params
+ */
 static void engine_handle_event(int length, char* buffer, const char* path) {
     int i = 0;
     while (i < length) {
@@ -183,29 +180,71 @@ static void engine_handle_event(int length, char* buffer, const char* path) {
         if (event->len) {
             char fullPluginPath[256];
             snprintf(fullPluginPath, sizeof(fullPluginPath), "%s/%s", path, event->name);
-            if (event->mask & (IN_CLOSE_WRITE | IN_MOVED_TO)) {
+
+            bool is_valid_file = check_file_extention(event->name);
+            bool is_create = event->mask & (IN_CLOSE_WRITE | IN_MOVED_TO);
+            bool is_delete = event->mask & (IN_DELETE | IN_MOVED_FROM);
+
+            if (is_create) {
+                clear_dashboard_before_log();
                 printf("[Core Info] The file %s was created\n", event->name);
-                if (!check_file_extention(event->name)) {
+
+                if (!is_valid_file) {
+                    clear_dashboard_before_log();
                     printf("[Core Warning] This folder is for .so files only, deleting %s\n", event->name);
                     remove(fullPluginPath);
                 }
                 else {
+                    clear_dashboard_before_log();
                     printf("[Core Info] loading plugin from: %s\n", fullPluginPath);
                     engine_load_plugin(fullPluginPath);
-                    // plugin->run();
                 }
             }
-            else if (event->mask & (IN_DELETE | IN_MOVED_FROM)) {
-                if (check_file_extention(event->name)) {
-                    printf("[Core Info] The file %s was deleted\n", event->name);
-                    engine_cleanup_plugin(event->name);
-                }
+            else if (is_delete && is_valid_file) {
+                clear_dashboard_before_log();
+                printf("[Core Info] The file %s was deleted\n", event->name);
+                engine_cleanup_plugin(event->name);
             }
         }
         i += (EVENT_SIZE + event->len); // event->len is the length of the event's name
     }
 }
 
+/**
+ * Scans the plugin dir and loads all existing Shared Object files using 'engine_load_plugin'
+ */
+void engine_load_existing_plugins(const char* path) {
+    printf("\n");
+    fflush(stdout);
+
+    struct dirent *entry;
+    DIR *dir = opendir(path);
+
+    if (dir == NULL) {
+        fprintf(stderr, "[SYS Error] Couldn't open dir '%s'\n", path);
+        return;
+    }
+    
+    printf("[Core Info] loading existing plugins!\n");
+
+    while ((entry = readdir(dir)) != NULL) {
+        if (entry->d_name[0] != '.') {
+            char fullPluginPath[512];
+            snprintf(fullPluginPath, sizeof(fullPluginPath), "%s/%s", path, entry->d_name);
+            bool is_valid_file = check_file_extention(entry->d_name);
+            if (!is_valid_file) {
+                printf("[Core Warning] This folder is for .so files only, deleting this file\n");
+                remove(fullPluginPath);
+            }
+            engine_load_plugin(fullPluginPath);
+        }
+    }
+    closedir(dir);
+}
+
+/**
+ * Initializes inotify, uses polling to react to events / update dashboard efficiently
+ */
 void engine_start_monitor(const char* path) {
     signal(SIGINT, handle_sigint);
 
@@ -235,19 +274,22 @@ void engine_start_monitor(const char* path) {
         // the kernel returns more than 0 only if an event happend in inotify
         
         if (ret > 0 && fds[0].revents & POLLIN) {
-            int length = read(fd, buffer, BUFFER_LEN);
-            if (dashboard_start_line > 0) {
-                printf("\033[%dA\033[J", dashboard_start_line);
-                dashboard_start_line = 0;
+            while (ret > 0 && fds[0].revents & POLLIN) {
+                int length = read(fd, buffer, BUFFER_LEN);
+                engine_handle_event(length, buffer, path);
+                ret = poll(fds, 1, 10);
             }
-            engine_handle_event(length, buffer, path);
+            fflush(stdout);
+            if (head != NULL)
+                engine_run_all();
+            continue;
         }
-        
         if (head != NULL)
             engine_run_all();
     }
 
-    restore_terminal();
+    // restore_terminal();
+    printf("\n[Core Info] Observer shut down. Bye!\n");
     inotify_rm_watch(fd, wd);
     close(fd);
 }
