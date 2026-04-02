@@ -1,7 +1,7 @@
 
 CC = gcc
 CFLAGS = -Wall -Wextra -I./include
-LDFLAGS = -ldl
+LDFLAGS = -ldl -lncurses
 
 PLUGIN_DIR = plugins
 BIN_PLUGIN_DIR = bin/plugins
@@ -10,7 +10,7 @@ BUILD_DIR = build
 
 PLUGIN_SOURCES = $(wildcard $(PLUGIN_DIR)/*.c)
 PLUGIN_SO = $(patsubst $(PLUGIN_DIR)/%.c, $(BIN_PLUGIN_DIR)/%.so, $(PLUGIN_SOURCES))
-CODE_SOURCES = $(CORE_DIR)/main.c $(CORE_DIR)/core_engine.c $(CORE_DIR)/utils.c
+CODE_SOURCES = $(CORE_DIR)/main.c $(CORE_DIR)/core_engine.c $(CORE_DIR)/utils.c $(CORE_DIR)/ui_manager.c
 
 all: setup core plugins
 

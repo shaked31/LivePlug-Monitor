@@ -12,6 +12,8 @@
 #include <stdbool.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <ncurses.h>
+
 
 #define PATH_TO_CPU_FILE "/proc/stat"
 #define MAX_BUFFER_SZ 1024
@@ -24,13 +26,14 @@ static bool first_run = true;
  * Opens the file, kept open for performance
  * Initializes relevant static variables
  */
-int cpu_init() {
+int cpu_init(WINDOW *plugin_log_win) {
     cpu_fd = open(PATH_TO_CPU_FILE, O_RDONLY);
     if (cpu_fd < 0) {
-        fprintf(stderr, "Couldn't open /proc/stat\n");
+        wprintw(plugin_log_win, "[SYS Error]: Couldn't open /proc/stat\n");
         return EXIT_FAILURE;
     }
-    printf("CPU Monitor Plugin initialized\n");
+    wprintw(plugin_log_win, "[CPU]: CPU Monitor Plugin initialized\n");
+    wrefresh(plugin_log_win);
     first_run = true;
     last_total = 0;
     last_idle = 0;
@@ -43,7 +46,7 @@ int cpu_init() {
  * Calculates CPU usage percentage based on the formula:
  * Usage = 100 * (TotalDiff - IdleDiff) / TotalDiff
  */
-void cpu_run() {
+void cpu_run(WINDOW *mon_win, WINDOW *plugin_log_win) {
     if (cpu_fd < 0) 
         return;
 
@@ -99,15 +102,16 @@ void cpu_run() {
             else if (usage < 0)
                 usage = 0;
 
-            printf("[CPU] Usage: %.2f%%\n", usage);
-            fflush(stdout);
+            wprintw(mon_win, "[CPU] Usage: %.2f%%\n", usage);
+            wrefresh(mon_win);
         }
     }
     else {
-        printf("[CPU] Calculating...\n");
+        wprintw(plugin_log_win, "[CPU] Calculating...\n");
+        wrefresh(plugin_log_win);
         first_run = false;
     }
-
+    
     last_total = curr_total;
     last_idle = curr_idle;
 }
@@ -116,9 +120,11 @@ void cpu_run() {
  * Cleans up open resources
  * closes file descriptor
  */
-void cpu_cleanup() {
+void cpu_cleanup(WINDOW *plugin_log_win) {
     if (cpu_fd >= 0)
         close(cpu_fd);
+    wprintw(plugin_log_win, "[CPU] Finished cleaning up\n");
+    wrefresh(plugin_log_win);
 }
 
 /**

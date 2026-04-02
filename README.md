@@ -21,14 +21,17 @@ LivePlug Monitor is a lightweight, high-performance Linux system utility written
 ├── core/
 │   ├── main.c            # Entry point
 │   ├── core_engine.c     # Plugin loading, inotify, dashboard loop
+│   ├── ui_manager.c      # UI Management using ncurses
 │   └── utils.c           # Filename helpers
 ├── plugins/
 │   ├── cpu_monitor.c     # CPU usage plugin (reads /proc/stat)
 │   ├── mem_monitor.c     # Memory usage plugin (reads /proc/meminfo)
+│   ├── net_monitor.c     # Network usage plugin (reads /proc/net/dev)
 │   └── hello_plugin.c    # Minimal example plugin
 ├── include/
 │   ├── plugin_api.h      # Plugin interface definition
 │   ├── core_engine.h     # Engine function declarations
+│   ├── ui_manager.h      # UI Management declarations
 │   └── utils.h           # Utility function declarations
 └── bin/
     └── plugins/          # Compiled .so files (watched directory)
@@ -43,7 +46,7 @@ LivePlug Monitor is a lightweight, high-performance Linux system utility written
 - Linux (uses `inotify` and `/proc`)
 - GCC
 - GNU Make
-
+ - libncurses-dev (run 'sudo apt install libncurses-dev')
 ### Build
 
 ```bash
@@ -83,6 +86,10 @@ The engine will scan `./bin/plugins/` for existing `.so` files, load them, and s
 
 Each plugin is a shared object exposing a single `get_plugin()` function that returns a `plugin_t` struct with three function pointers: `init`, `run`, and `cleanup`.
 
+Must use wprintw to print a log. 
+If the log should be printed at the monitor, then the first param should be monitor_win (the suitable WINDOW)
+Otherwise, use plugin_log_win
+
 Loaded plugins are stored in a **singly linked list**. The dashboard iterates the list and calls `run()` on each plugin every cycle.
 
 ---
@@ -93,19 +100,22 @@ Implement the `plugin_t` interface and export `get_plugin()`:
 
 ```c
 #include "plugin_api.h"
-#include <stdio.h>
+#include <ncurses.h>
 
-int my_init() {
-    printf("My plugin initialized\n");
+int my_init(WINDOW *plugin_log_win) {
+    wprintw(plugin_log_win, "[MY PLUGIN] My plugin initialized\n");
+    wrefresh(plugin_log_win);
     return 0; // return non-zero to abort loading
 }
 
-void my_run() {
-    printf("[MY PLUGIN] Hello from the dashboard!\n");
+void my_run(WINDOW *plugin_log_win, WINDOW *monitor_win) {
+    wprintw(monitor_win, "[MY PLUGIN] Hello from the dashboard!\n");
+    wrefresh(monitor_win);
 }
 
-void my_cleanup() {
-    printf("My plugin cleaned up\n");
+void my_cleanup(WINDOW *plugin_log_win) {
+    wprintw(plugin_log_win, "[MY PLUGIN] My plugin cleaned up\n");
+    wrefresh(plugin_log_win);
 }
 
 plugin_t* get_plugin() {

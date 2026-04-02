@@ -12,20 +12,22 @@
 static int mem_fd;
 
 /**
- * Initializes the CPU monitor
+ * Initializes the Memory usage monitor
  * Opens the file, kept open for performance
  */
-int mem_init() {
+int mem_init(WINDOW *plugin_log_win) {
     mem_fd = open(PATH_TO_MEM_FILE, O_RDONLY);
     if (mem_fd < 0) {
-        fprintf(stderr, "Couldn't open /proc/meminfo\n");
+        wprintw(plugin_log_win, "[SYS Error]: Couldn't open /proc/meminfo\n");
+        wrefresh(plugin_log_win);
         return EXIT_FAILURE;
     }
-    printf("Memory Monitor Plugin initialized\n");
+    wprintw(plugin_log_win, "[MEM]: Memory Monitor Plugin initialized\n");
+    wrefresh(plugin_log_win);
     return EXIT_SUCCESS;
 }
 
-void mem_run() {
+void mem_run(WINDOW *mon_win, WINDOW *plugin_log_win) {
     if (mem_fd < 0)
         return;
     
@@ -62,8 +64,9 @@ void mem_run() {
     if (total > 0) {
         float used_gb = (float)(total - available) / (1024 * 1024);
         float total_gb = (float)total / (1024 * 1024);
-        printf("[MEM] Usage: %.2f GB / %.2f GB (%.1f%%)\n", 
+        wprintw(mon_win, "[MEM]: Usage: %.2f GB / %.2f GB (%.1f%%)\n", 
                used_gb, total_gb, (float)(total - available) / total * 100.0);
+        wrefresh(mon_win);
     }
 }
 
@@ -71,9 +74,11 @@ void mem_run() {
  * Cleans up open resources
  * closes file descriptor
  */
-void mem_cleanup() {
+void mem_cleanup(WINDOW *plugin_log_win) {
     if (mem_fd >= 0)
         close(mem_fd);
+    wprintw(plugin_log_win, "[MEM]: Finished cleaning up");
+    wrefresh(plugin_log_win);
 }
 
 /**

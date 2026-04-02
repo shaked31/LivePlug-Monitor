@@ -4,8 +4,9 @@
 #include "plugin_api.h"
 
 // --------- static functions --------- //
-int engine_load_plugin(const char* path); // loads plugin & adds to the linked list
+int engine_load_plugin(const char* path);
 void engine_cleanup_plugin(const char* filename);
+void engine_cleanup_all_plugins();
 void engine_run_all();
 void handle_sigint(int sig);
 
