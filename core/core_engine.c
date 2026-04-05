@@ -142,7 +142,6 @@ static void engine_run_all() {
     wattron(mon_win, A_REVERSE | A_BOLD);
     wprintw(mon_win, "--------- [ LivePlug Monitor ] ---------\n");
     wprintw(mon_win, "----------------------------------------\n");
-    wattroff(mon_win, A_REVERSE | A_BOLD);
 
     plugin_node_t* curr = head;
     while (curr != NULL) {
@@ -151,6 +150,7 @@ static void engine_run_all() {
     }
 
     wprintw(mon_win, "----------------------------------------\n");
+    wattroff(mon_win, A_REVERSE | A_BOLD);
     ui_refresh_monitor();
 }
 
