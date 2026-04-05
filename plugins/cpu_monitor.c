@@ -12,8 +12,6 @@
 #include <stdbool.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <ncurses.h>
-
 
 #define PATH_TO_CPU_FILE "/proc/stat"
 #define MAX_BUFFER_SZ 1024
@@ -47,7 +45,8 @@ int cpu_init(WINDOW *plugin_log_win) {
  * Usage = 100 * (TotalDiff - IdleDiff) / TotalDiff
  */
 void cpu_run(WINDOW *mon_win, WINDOW *plugin_log_win) {
-    if (cpu_fd < 0) 
+    (void)plugin_log_win;
+    if (cpu_fd < 0)
         return;
 
     char buffer[MAX_BUFFER_SZ];
@@ -107,8 +106,8 @@ void cpu_run(WINDOW *mon_win, WINDOW *plugin_log_win) {
         }
     }
     else {
-        wprintw(plugin_log_win, "[CPU] Calculating...\n");
-        wrefresh(plugin_log_win);
+        wprintw(mon_win, "[CPU] Calculating...\n");
+        wrefresh(mon_win);
         first_run = false;
     }
     

@@ -8,6 +8,7 @@ int hello_init(WINDOW *plugin_log_win) {
 }
 
 void hello_run(WINDOW *mon_win, WINDOW *plugin_log_win) {
+    (void)plugin_log_win;
     wprintw(mon_win, "[HELLO] running hello plugin...\n");
     wrefresh(mon_win);
 }

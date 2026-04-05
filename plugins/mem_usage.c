@@ -28,6 +28,7 @@ int mem_init(WINDOW *plugin_log_win) {
 }
 
 void mem_run(WINDOW *mon_win, WINDOW *plugin_log_win) {
+    (void)plugin_log_win;
     if (mem_fd < 0)
         return;
     
@@ -77,7 +78,7 @@ void mem_run(WINDOW *mon_win, WINDOW *plugin_log_win) {
 void mem_cleanup(WINDOW *plugin_log_win) {
     if (mem_fd >= 0)
         close(mem_fd);
-    wprintw(plugin_log_win, "[MEM]: Finished cleaning up");
+    wprintw(plugin_log_win, "[MEM]: Finished cleaning up\n");
     wrefresh(plugin_log_win);
 }
 

@@ -12,7 +12,6 @@
 #include <unistd.h>
 #include <poll.h>
 #include <signal.h>
-#include <ncurses.h>
 
 #include "../include/plugin_api.h"
 #include "../include/utils.h"
