@@ -26,7 +26,7 @@ LivePlug Monitor is a lightweight, high-performance Linux system utility written
 ├── plugins/
 │   ├── cpu_monitor.c     # CPU usage plugin (reads /proc/stat)
 │   ├── mem_monitor.c     # Memory usage plugin (reads /proc/meminfo)
-│   ├── net_monitor.c     # Network usage plugin (reads /proc/net/dev)
+│   ├── net_monitor.c     # Network usage plugin (reads /proc/net/dev & /sys/class/net)
 │   └── hello_plugin.c    # Minimal example plugin
 ├── include/
 │   ├── plugin_api.h      # Plugin interface definition
@@ -145,6 +145,7 @@ The engine will detect the new file and load it automatically.
 |---|---|---|
 | `cpu_monitor` | `/proc/stat` | CPU usage % (delta between samples) |
 | `mem_monitor` | `/proc/meminfo` | RAM used / total in GB |
+| `net_monitor` | `/proc/net/dev & /sys/class/net` | download, upload in KB/s |
 | `hello_plugin` | — | Minimal example plugin |
 
 ---
