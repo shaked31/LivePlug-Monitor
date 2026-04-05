@@ -33,6 +33,7 @@ LivePlug Monitor is a lightweight, high-performance Linux system utility written
 │   ├── core_engine.h     # Engine function declarations
 │   ├── ui_manager.h      # UI Management declarations
 │   └── utils.h           # Utility function declarations
+│   build/                # Compiled program
 └── bin/
     └── plugins/          # Compiled .so files (watched directory)
 ```
@@ -132,7 +133,7 @@ plugin_t* get_plugin() {
 Compile as a shared object and drop it into `bin/plugins/`:
 
 ```bash
-gcc -Wall -fPIC -shared my_plugin.c -o bin/plugins/my_plugin.so
+gcc -Wall -Wextra -fPIC -shared -lncurses -I./include plugins/my_plugin.c -o bin/plugins/my_plugin.so
 ```
 
 The engine will detect the new file and load it automatically.
