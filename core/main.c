@@ -1,5 +1,4 @@
 #include "../include/core_engine.h"
-#include "../include/ui_manager.h"
 
 #define PLUGINS_DIR "./bin/plugins"
 
