@@ -1,7 +1,7 @@
 
 CC = gcc
-CFLAGS = -Wall -Wextra -I./include
-LDFLAGS = -ldl -lncurses
+CFLAGS = -Wall -Wextra -pthread -I./include
+LDFLAGS = -rdynamic -ldl -lncurses -pthread
 
 PLUGIN_DIR = plugins
 BIN_PLUGIN_DIR = bin/plugins
