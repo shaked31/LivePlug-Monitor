@@ -1,7 +1,8 @@
 
 CC = gcc
-CFLAGS = -Wall -Wextra -pthread -I./include
+CFLAGS = -Wall -Wextra -pthread -I./include -D_XOPEN_SOURCE=500
 LDFLAGS = -rdynamic -ldl -lncurses -pthread
+PLUGIN_LDFLAGS = -lncurses -lpthread
 
 PLUGIN_DIR = plugins
 BIN_PLUGIN_DIR = bin/plugins
@@ -26,7 +27,7 @@ core: setup
 plugins: $(PLUGIN_SO)
 
 $(BIN_PLUGIN_DIR)/%.so: $(PLUGIN_DIR)/%.c setup
-	$(CC) $(CFLAGS) -fPIC -shared $< -o $@
+	$(CC) $(CFLAGS) -fPIC -shared $< -o $@ $(PLUGIN_LDFLAGS)
 
 pclean:
 	rm -rf bin/plugins/*

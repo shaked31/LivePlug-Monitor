@@ -3,7 +3,6 @@
  * This plugin performs dynamic discovery of thermal sensors in /sys/class/thermal dir
  * and binds to the x86_pkg_temp (CPU Package) sensor if available.
  */
-#define _XOPEN_SOURCE 500
 
 #include "../include/plugin_api.h"
 #include "../include/ui_manager.h"

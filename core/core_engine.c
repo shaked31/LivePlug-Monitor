@@ -4,6 +4,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <errno.h>
 #include <dirent.h>
 #include <dlfcn.h>
 #include <string.h>
@@ -59,7 +60,11 @@ static void handle_sigint(int sig) {
     keep_running = false;
 }
 
-
+/**
+ * Thread routine executed by each plugin thread.
+ * Calls the plugin's run() function with monitor and log windows.
+ * Frees the thread args before returning.
+ */
 static void* plugin_thread_routine(void* ptr) {
     core_thread_args_t* args = (core_thread_args_t*)ptr;
     args->node->curr_plugin->run(args->mon_win, args->plugin_log_win, args->node->monitor_row_idx);
@@ -96,9 +101,9 @@ static void engine_load_plugin(const char* full_path) {
 
     plugin_node_t* new_node = (plugin_node_t*)malloc(sizeof(plugin_node_t));
     if (new_node == NULL) {
-        ui_log("[CORE Error]: Memory allocation failed\n");
+        ui_log("[CORE Error]: Memory allocation failed: %s\n", strerror(errno));
         ui_cleanup();
-        exit(EXIT_FAILURE);
+        return;
     }
 
     char* filename = get_filename(full_path);
@@ -152,6 +157,11 @@ static void engine_cleanup_plugin(const char* filename) {
     pthread_mutex_unlock(&list_mutex);
 }
 
+/**
+ * Destroys all plugin nodes in the linked list.
+ * Calls cleanup() on each plugin, closes dlopen handles,
+ * frees allocated memory, and resets list state.
+ */
 static void engine_cleanup_all_plugins() {
     plugin_node_t *curr = head, *next;
     while (curr != NULL) {
@@ -190,6 +200,10 @@ static void engine_run_all() {
     plugin_node_t* curr = head;
     while (curr != NULL && thread_count < MAX_PLUGINS) {
         core_thread_args_t* args = (core_thread_args_t*)malloc(sizeof(core_thread_args_t));
+        if (args == NULL) {
+            ui_log("[CORE Error] Couldn't allocate memory for thread args: %s\n", strerror(errno));
+            continue;
+        }
         args->node = curr;
         args->mon_win = mon_win;
         args->plugin_log_win = plugin_log_win;
@@ -251,16 +265,16 @@ void engine_load_existing_plugins(const char* path) {
     mon_win = ui_get_monitor_win();
     plugin_log_win = ui_get_plugin_log_win();
 
-    // If UI initialization failed (e.g., terminal too small), exit cleanly
-    if (mon_win == NULL || plugin_log_win == NULL) {
-        exit(EXIT_SUCCESS);
-    }
+    // UI initialization failed (terminal too small)
+    if (mon_win == NULL || plugin_log_win == NULL)
+        return; // return to main that will exit gracefully
+    
 
     struct dirent *entry;
     DIR *dir = opendir(path);
 
     if (dir == NULL) {
-        ui_log("[CORE Error] Couldn't open dir '%s'\n", path);
+        ui_log("[CORE Error] Couldn't open dir '%s': %s\n", path, strerror(errno));
         return;
     }
     
@@ -288,15 +302,20 @@ void engine_start_monitor(const char* path) {
 
     int fd = inotify_init(); // init inotify
     if (fd < 0) {
-        ui_log("[CORE Error] Couldn't init inotify\n");
+        ui_log("[CORE Error] Couldn't init inotify: %s\n", strerror(errno));
         ui_cleanup();
-        exit(EXIT_FAILURE);
+        return;
     }
     /*
         watch for creation \ deletion \ movement of files in the folder.
         IN_CLOSE_WRITE makes sure that the program doesnt start to load the .so file before gcc finished writing to it.
     */ 
     int wd = inotify_add_watch(fd, path, IN_CLOSE_WRITE | IN_MOVED_TO | IN_DELETE | IN_MOVED_FROM);
+    if (wd < 0) {
+        ui_log("[CORE Error] Couldn't add inotify watch: %s\n", strerror(errno));
+        ui_cleanup();
+        return;
+    }
     ui_log("[CORE Info] Ready to listen to events\n");
 
     struct pollfd fds[1]; // 1 source of file descriptor
@@ -322,9 +341,9 @@ void engine_start_monitor(const char* path) {
             engine_run_all();
     }
 
-    engine_cleanup_all_plugins();
-    printf("\n[CORE Info] Observer shut down. Bye!\n");
     ui_cleanup();
+    engine_cleanup_all_plugins();
+    printf("\r\n[CORE Info] LivePlug Monitor shut down. Bye!\n");
     inotify_rm_watch(fd, wd);
     close(fd);
 }

@@ -4,8 +4,6 @@
  * It calculates the precentage of CPU usage by delta (between 2 time periods)
  */
 
-#define _XOPEN_SOURCE 500 // Required for pread()
-
 #include "../include/plugin_api.h"
 #include "../include/ui_manager.h"
 

@@ -4,7 +4,7 @@
 char* get_filename(const char* fullPath) {
     char* filename = strrchr(fullPath, '/');
     if (filename == NULL) {
-        perror("Not a valid path");
+        fprintf(stderr, "[CORE Error] Invalid path format: no '/' found in %s\n", fullPath);
         return NULL;
     }
     return filename + 1;
