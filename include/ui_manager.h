@@ -2,6 +2,7 @@
 #define UI_MANAGER_H
 
 #include <ncurses.h>
+#include <stdarg.h>
 
 void ui_init();
 
@@ -13,5 +14,7 @@ WINDOW* ui_get_plugin_log_win();
 void ui_clear_monitor();
 void ui_refresh_monitor();
 void ui_cleanup();
+
+void safe_print(WINDOW* win, int row, const char* fmt, ...);
 
 #endif
