@@ -5,6 +5,8 @@
 #define _XOPEN_SOURCE 500
 
 #include "../include/plugin_api.h"
+#include "../include/ui_manager.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -66,8 +68,7 @@ static void refresh_interfaces(WINDOW *win) {
     DIR *dir = opendir(PATH_TO_INTF_DIR);
 
     if (dir == NULL) {
-        wprintw(win, "[SYS Error]: Couldn't open dir '%s'\n", PATH_TO_INTF_DIR);
-        wrefresh(win);
+        safe_print(win, -1, "[NET Error] Couldn't open dir '%s'\n", PATH_TO_INTF_DIR);
         return;
     }
 
@@ -85,8 +86,7 @@ static void refresh_interfaces(WINDOW *win) {
                 intf_data_t* temp = realloc(interfaces, (intf_counter + 1) * sizeof(intf_data_t));
                 if (temp == NULL) {
                     closedir(dir);
-                    wprintw(win, "[SYS Error]: Couldn't allocate memory for interfaces array\n");
-                    wrefresh(win);
+                    safe_print(win, -1, "[NET Error] Couldn't allocate memory for interfaces array\n");
                     return;
                 }
                 interfaces = temp;
@@ -96,9 +96,7 @@ static void refresh_interfaces(WINDOW *win) {
                 strncpy(interfaces[intf_counter].name, entry->d_name, MAX_INTERFACE_NAME_LEN);
                 interfaces[intf_counter].is_up = is_intf_up(interfaces[intf_counter].name, interfaces[intf_counter].last_state);
 
-                wprintw(win, "[NET Info]: New interface found %s in status %s\n", interfaces[intf_counter].name, interfaces[intf_counter].last_state);
-                wrefresh(win);
-
+                safe_print(win, -1, "[NET Info] New interface found - %s, status %s\n", interfaces[intf_counter].name, interfaces[intf_counter].last_state);
                 intf_counter++;
             }
         }
@@ -113,27 +111,24 @@ static void refresh_interfaces(WINDOW *win) {
 int net_init(WINDOW *plugin_log_win) {
     net_fd = open(PATH_TO_NET_FILE, O_RDONLY);
     if (net_fd < 0) {
-        wprintw(plugin_log_win, "[SYS Error]: Couldn't open /proc/net/dev\n");
-        wrefresh(plugin_log_win);
+        safe_print(plugin_log_win, -1, "[NET Error] Couldn't open /proc/net/dev\n");
         return EXIT_FAILURE;
     }
 
     refresh_interfaces(plugin_log_win);
 
     if (intf_counter == 0) {
-        wprintw(plugin_log_win, "[NET Error]: No physical network interfaces found\n");
-        wrefresh(plugin_log_win);
+        safe_print(plugin_log_win, -1, "[NET Error] No physical network interfaces found\n");
         return EXIT_FAILURE;
     }
 
-    wprintw(plugin_log_win, "[NET Info]: Network Monitor Plugin initialized\n");
-    wrefresh(plugin_log_win);
+    safe_print(plugin_log_win, -1, "[NET Info] Network Monitor Plugin initialized\n");
     
     first_run = true;
     return EXIT_SUCCESS;
 }
 
-void net_run(WINDOW *mon_win, WINDOW *plugin_log_win) {
+void net_run(WINDOW *mon_win, WINDOW *plugin_log_win, int monitor_row_idx) {
     if (net_fd < 0)
         return;
     
@@ -155,17 +150,14 @@ void net_run(WINDOW *mon_win, WINDOW *plugin_log_win) {
     for (int i = 0; i < intf_counter ; i++) {
         char* line = strstr(buffer, interfaces[i].name);
         if (line == NULL) {
-            wprintw(plugin_log_win, "[NET] interface %s was not found\n", interfaces[i].name);
-            wrefresh(plugin_log_win);
+            safe_print(plugin_log_win, -1, "[NET] interface %s was not found\n", interfaces[i].name);
             continue;
         }
         char curr_state[MAX_STATE_BUFFER_SZ];
         bool is_curr_intf_up = is_intf_up(interfaces[i].name, curr_state);
 
         if (strcmp(curr_state, interfaces[i].last_state) != 0) {
-            wprintw(plugin_log_win, "[NET Info]: %s changed from %s to %s\n", 
-                    interfaces[i].name, interfaces[i].last_state, curr_state);
-            wrefresh(plugin_log_win);
+            safe_print(plugin_log_win, -1, "[NET Info] %s changed from %s to %s\n"),
 
             strncpy(interfaces[i].last_state, curr_state, MAX_STATE_BUFFER_SZ);
             interfaces[i].is_up = is_curr_intf_up;
@@ -180,8 +172,7 @@ void net_run(WINDOW *mon_win, WINDOW *plugin_log_win) {
                 if (!first_run) {
                     float rx_kb = (float)(curr_rx - interfaces[i].last_rx) / 1024;
                     float tx_kb = (float)(curr_tx - interfaces[i].last_tx) / 1024;
-                    wprintw(mon_win, "[NET]: %s download %.1f, upload %.1f KB/s\n", interfaces[i].name, rx_kb, tx_kb);
-                    wrefresh(mon_win);
+                    safe_print(mon_win, monitor_row_idx, "[NET] %s download %.1f, upload %.1f KB/s\n", interfaces[i].name, rx_kb, tx_kb);
                 }
 
                 interfaces[i].last_rx = curr_rx;
@@ -197,8 +188,7 @@ void net_run(WINDOW *mon_win, WINDOW *plugin_log_win) {
     intf_counter = active_idx;
 
     if (first_run) {
-        wprintw(mon_win, "[NET]: Calculting...\n");
-        wrefresh(mon_win);
+        safe_print(mon_win, monitor_row_idx, "[NET] Calculting...\n");
 
         first_run = false;
     }
@@ -209,8 +199,7 @@ void net_cleanup(WINDOW *plugin_log_win) {
         close(net_fd);
     if (interfaces != NULL)
         free(interfaces);
-    wprintw(plugin_log_win, "[NET]: Finished cleaning up\n");
-    wrefresh(plugin_log_win);
+    safe_print(plugin_log_win, -1, "[NET Info] Finished cleaning up\n");
 }
 
 plugin_t* get_plugin() {

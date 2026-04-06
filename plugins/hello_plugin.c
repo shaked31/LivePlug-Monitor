@@ -1,21 +1,18 @@
 #include "../include/plugin_api.h"
-#include <stdio.h>
+#include "../include/ui_manager.h"
 
 int hello_init(WINDOW *plugin_log_win) {
-    wprintw(plugin_log_win, "[HELLO] hello there, Im an hello plugin\n");
-    wrefresh(plugin_log_win);
+    safe_print(plugin_log_win, -1, "[HELLO Info] hello there, Im an hello plugin\n");
     return 0;
 }
 
-void hello_run(WINDOW *mon_win, WINDOW *plugin_log_win) {
+void hello_run(WINDOW *mon_win, WINDOW *plugin_log_win, int monitor_row_idx) {
     (void)plugin_log_win;
-    wprintw(mon_win, "[HELLO] running hello plugin...\n");
-    wrefresh(mon_win);
+    safe_print(mon_win, monitor_row_idx, "[HELLO] running hello plugin...\n");
 }
 
 void hello_cleanup(WINDOW *plugin_log_win) {
-    wprintw(plugin_log_win, "[HELLO] cleaning up hello plugin... BYE!\n");
-    wrefresh(plugin_log_win);
+    safe_print(plugin_log_win, -1, "[HELLO Info] cleaning up hello plugin... BYE!\n");
 }
 
 plugin_t* get_plugin() {

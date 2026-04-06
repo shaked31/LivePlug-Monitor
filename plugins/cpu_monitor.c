@@ -7,6 +7,8 @@
 #define _XOPEN_SOURCE 500 // Required for pread()
 
 #include "../include/plugin_api.h"
+#include "../include/ui_manager.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -27,11 +29,10 @@ static bool first_run = true;
 int cpu_init(WINDOW *plugin_log_win) {
     cpu_fd = open(PATH_TO_CPU_FILE, O_RDONLY);
     if (cpu_fd < 0) {
-        wprintw(plugin_log_win, "[SYS Error]: Couldn't open /proc/stat\n");
+        safe_print(plugin_log_win, -1, "[CPU Error] Couldn't open /proc/stat\n");
         return EXIT_FAILURE;
     }
-    wprintw(plugin_log_win, "[CPU]: CPU Monitor Plugin initialized\n");
-    wrefresh(plugin_log_win);
+    safe_print(plugin_log_win, -1, "[CPU Info] CPU Monitor Plugin initialized\n");
     first_run = true;
     last_total = 0;
     last_idle = 0;
@@ -44,7 +45,7 @@ int cpu_init(WINDOW *plugin_log_win) {
  * Calculates CPU usage percentage based on the formula:
  * Usage = 100 * (TotalDiff - IdleDiff) / TotalDiff
  */
-void cpu_run(WINDOW *mon_win, WINDOW *plugin_log_win) {
+void cpu_run(WINDOW *mon_win, WINDOW *plugin_log_win, int monitor_row_idx) {
     (void)plugin_log_win;
     if (cpu_fd < 0)
         return;
@@ -101,13 +102,11 @@ void cpu_run(WINDOW *mon_win, WINDOW *plugin_log_win) {
             else if (usage < 0)
                 usage = 0;
 
-            wprintw(mon_win, "[CPU] Usage: %.2f%%\n", usage);
-            wrefresh(mon_win);
+            safe_print(mon_win, monitor_row_idx, "[CPU] Usage: %.2f%%\n", usage);
         }
     }
     else {
-        wprintw(mon_win, "[CPU] Calculating...\n");
-        wrefresh(mon_win);
+        safe_print(mon_win, monitor_row_idx, "[CPU] Calculating...\n");
         first_run = false;
     }
     
@@ -116,14 +115,12 @@ void cpu_run(WINDOW *mon_win, WINDOW *plugin_log_win) {
 }
 
 /**
- * Cleans up open resources
- * closes file descriptor
+ * Closes file descriptor
  */
 void cpu_cleanup(WINDOW *plugin_log_win) {
     if (cpu_fd >= 0)
         close(cpu_fd);
-    wprintw(plugin_log_win, "[CPU] Finished cleaning up\n");
-    wrefresh(plugin_log_win);
+    safe_print(plugin_log_win, -1, "[CPU Info] Finished cleaning up\n");
 }
 
 /**
