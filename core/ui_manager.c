@@ -109,8 +109,6 @@ void ui_clear_monitor() {
 
 /**
  * Cleans up ncurses UI and restores terminal to normal mode.
- * Restores terminal flags (echo, canonical mode) and cursor visibility.
- * Clears screen and resets terminal state before exit.
  */
 void ui_cleanup() {
     if (!is_ui_active)
@@ -123,11 +121,14 @@ void ui_cleanup() {
     fflush(stdout);
 }
 
+/**
+ * thread-safe print function using mutex.
+ */
 void safe_print(WINDOW* win, int row, const char* fmt, ...) {
     va_list args;
     va_start(args, fmt);
 
-    if (win == NULL || !is_ui_active) {
+    if (win == NULL || !is_ui_active) { // after SIGINT
         vprintf(fmt, args);
         va_end(args);
         fflush(stdout);
