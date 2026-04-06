@@ -6,7 +6,7 @@
 typedef struct {
     const char* name;
     int (*init)(WINDOW *plugin_log_win);
-    void (*run)(WINDOW *mon_win, WINDOW *plugin_log_win);
+    void (*run)(WINDOW *mon_win, WINDOW *plugin_log_win, int monitor_row_idx);
     void (*cleanup)(WINDOW *plugin_log_win);
 } plugin_t;
 
