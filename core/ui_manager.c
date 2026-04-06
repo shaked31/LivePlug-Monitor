@@ -120,13 +120,6 @@ void ui_cleanup() {
     erase();
     refresh();
     endwin();
-    // struct termios term;
-    // if (tcgetattr(STDOUT_FILENO, &term) == 0) {
-    //     term.c_lflag |= (ECHO | ICANON);  // restore input echo and canonical mode
-    //     term.c_oflag |= (OPOST | ONLCR);  // restore output processing and line feed conversion
-    //     tcsetattr(STDOUT_FILENO, TCSANOW, &term);
-    // }
-
     fflush(stdout);
 }
 
